@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using NorthWind.Sales.Backend.BusinessObjects.POCOEntities;
 using NorthWind.Sales.Backend.Repositories.Entities;
 using System.Reflection;
@@ -10,7 +10,7 @@ internal class NorthWindContext : DbContext
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.UseSqlServer(
-            "Server=(localdb)\\mssqllocaldb; Database=NorthWindD8");
+            "Server=localhost;Database=NorthWindD8;User Id=sa;Password=DIEgo344;TrustServerCertificate=True");
     }
 
     public DbSet<Order> Orders { get; set; }

@@ -10,7 +10,7 @@ internal class NorthWindMembershipContextFactory :
                 new MembershipDBOptions() 
                 { 
                     ConnectionString = 
-                    "Server=(localdb)\\mssqllocaldb;Database=NorthWindUsersDB" 
+                    "Server=localhost;Database=NorthWindUsersDB;User Id=sa;Password=DIEgo344;TrustServerCertificate=True" 
                 }); 
         return new NorthWindMembershipContext(DbOptions); 
     } 

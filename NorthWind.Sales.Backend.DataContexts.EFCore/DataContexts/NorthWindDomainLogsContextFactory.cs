@@ -10,7 +10,7 @@ internal class NorthWindDomainLogsContextFactory :
                 new DBOptions
                 {
                     DomainLogsConnectionString =
-                        "Server=(localdb)\\mssqllocaldb;Database=NorthWindLogsDB"
+                        "Server=localhost;Database=NorthWindLogsDB;User Id=sa;Password=DIEgo344;TrustServerCertificate=True"
                 });
         return new NorthWindDomainLogsContext(DbOptions);
     }
