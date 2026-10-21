@@ -1,0 +1,302 @@
+@using NorthWind.Sales.Entities.Dtos.Customers
+@using NorthWind.Sales.Entities.Dtos.Pagination
+@using NorthWind.Sales.Frontend.BusinessObjects.Interfaces
+@inject ISearchCustomersGateway SearchGateway
+@implements IDisposable
+
+@if (IsVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-search"></i> Búsqueda Inteligente de Clientes
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Selector de Criterio y Campo de Texto en Vivo -->
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-semibold mb-1">Buscar por:</label>
+                        <div class="input-group shadow-sm">
+                            <select class="form-select bg-light fw-semibold text-secondary" 
+                                    style="max-width: 180px;" 
+                                    value="@SelectedCriterion" 
+                                    @onchange="OnCriterionChanged">
+                                <option value="CustomerId">Cédula</option>
+                                <option value="CustomerName">Nombre Cliente</option>
+                            </select>
+                            <input type="text" class="form-control" 
+                                   placeholder="@SearchPlaceholder" 
+                                   value="@SearchTerm" 
+                                   autocomplete="off"
+                                   autocorrect="off"
+                                   autocapitalize="off"
+                                   spellcheck="false"
+                                   @oninput="OnSearchInput" />
+                            @if (!string.IsNullOrEmpty(SearchTerm))
+                            {
+                                <button class="btn btn-outline-secondary" type="button" title="Limpiar texto" @onclick="ClearSearchText">
+                                    ✕
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <div class="alert alert-danger text-center my-3">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            @ErrorMessage
+                        </div>
+                    }
+                    else if (IsLoading)
+                    {
+                        <div class="text-center my-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                            <p class="text-muted mt-2">Buscando clientes...</p>
+                        </div>
+                    }
+                    else if (Result == null || Result.Items.Count == 0)
+                    {
+                        <div class="alert alert-warning text-center my-3">
+                            No se encontraron clientes con el término ingresado.
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Indicador informativo sobre políticas de crédito -->
+                        <!--
+                        <div class="alert alert-info py-2 px-3 small d-flex align-items-center mb-3 shadow-sm border-0">
+                            <span class="me-2 fs-6">ℹ️</span>
+                            <div>
+                                <strong>Control de Cartera:</strong> El saldo refleja la <strong>deuda pendiente</strong> del cliente. Aquellos que registren deuda mayor a $0.00 están bloqueados y no pueden ser seleccionados.
+                            </div>
+                        </div>
+                        -->
+
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Cédula</th>
+                                        <th>Nombre del Cliente</th>
+                                        <th class="text-end">Deuda Pendiente</th>
+                                        <th class="text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var customer in Result.Items)
+                                    {
+                                        bool hasDebt = customer.CurrentBalance > 0;
+                                        <tr class="@(hasDebt ? "table-light text-muted" : "")">
+                                            <td class="fw-bold @(hasDebt ? "text-secondary" : "text-dark")">@customer.Id</td>
+                                            <td>
+                                                <span>@customer.Name</span>
+                                                
+                                            </td>
+                                            <td class="text-end">
+                                                @if (hasDebt)
+                                                {
+                                                    <span class="badge bg-danger shadow-sm">
+                                                        Deuda: $ @customer.CurrentBalance.ToString("N2")
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-success shadow-sm">
+                                                        Sin Deuda ($ 0.00)
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                @if (hasDebt)
+                                                {
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-secondary disabled shadow-none" 
+                                                            disabled 
+                                                            title="Cliente con deuda pendiente de $ @customer.CurrentBalance.ToString("N2"). No se puede emitir una orden.">
+                                                        No permitido
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-primary shadow-sm"
+                                                            @onclick="() => SelectCustomer(customer)">
+                                                        Seleccionar
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination controls -->
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <label class="text-muted small mb-0 fw-semibold">Mostrar:</label>
+                                <select class="form-select form-select-sm shadow-sm" style="width: auto; min-width: 85px;" value="@PageSize" @onchange="OnPageSizeChanged">
+                                    <option value="10">10</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                                <span class="text-muted small">
+                                    por página | Página @Result.PageIndex de @Result.TotalPages (Total: @Result.TotalCount clientes)
+                                </span>
+                            </div>
+                            <div class="btn-group btn-group-sm shadow-sm">
+                                <button type="button" class="btn btn-outline-secondary" 
+                                        disabled="@(!Result.HasPreviousPage)" 
+                                        @onclick="() => Search(Result.PageIndex - 1)">
+                                    ◀ Anterior
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" 
+                                        disabled="@(!Result.HasNextPage)" 
+                                        @onclick="() => Search(Result.PageIndex + 1)">
+                                    Siguiente ▶
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<CustomerDto> OnCustomerSelected { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private string SelectedCriterion = "CustomerId";
+    private string SearchTerm = string.Empty;
+    private PaginatedResult<CustomerDto>? Result;
+    private bool IsLoading = false;
+    private string? ErrorMessage;
+    private int PageSize = 10;
+    private CancellationTokenSource? _searchCts;
+
+    private string SearchPlaceholder => SelectedCriterion switch
+    {
+        "CustomerId" => "Escribe aquí Ej. 1801234567",
+        "CustomerName" => "Escribe aquí Ej. Alfreds Futterkiste",
+        _ => "Escribe aquí para buscar clientes..."
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsVisible && Result == null)
+        {
+            await Search(1);
+        }
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchTerm = e.Value?.ToString() ?? string.Empty;
+
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        try
+        {
+            await Task.Delay(300, token);
+            if (!token.IsCancellationRequested)
+            {
+                await Search(1);
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Búsqueda anterior cancelada
+        }
+    }
+
+    private async Task OnCriterionChanged(ChangeEventArgs e)
+    {
+        SelectedCriterion = e.Value?.ToString() ?? "CustomerId";
+        await Search(1);
+    }
+
+    private async Task ClearSearchText()
+    {
+        SearchTerm = string.Empty;
+        await Search(1);
+    }
+
+    private async Task OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newSize) && newSize > 0)
+        {
+            PageSize = newSize;
+            await Search(1);
+        }
+    }
+
+    public async Task Search(int pageIndex)
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            Result = await SearchGateway.SearchCustomersAsync(
+                SearchTerm, 
+                pageIndex, 
+                PageSize, 
+                SelectedCriterion == "All" ? null : SelectedCriterion);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            ErrorMessage = "Sesión no autorizada o expirada. Por favor, vuelva a iniciar sesión.";
+            Result = null;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error al buscar clientes: {ex.Message}";
+            Result = null;
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SelectCustomer(CustomerDto customer)
+    {
+        if (customer.CurrentBalance > 0)
+        {
+            return; // Bloqueo de seguridad: no permite seleccionar clientes con deuda pendiente
+        }
+        await OnCustomerSelected.InvokeAsync(customer);
+        await CloseModal();
+    }
+
+    private async Task CloseModal()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+    }
+}

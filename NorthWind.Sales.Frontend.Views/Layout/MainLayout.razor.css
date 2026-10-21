@@ -1,0 +1,94 @@
+.bi, ::deep .bi {
+    width: 1.25rem;
+    height: 1.25rem;
+    display: inline-block;
+    position: relative;
+    margin-right: 0.75rem;
+    top: -1px;
+    background-size: cover;
+}
+
+.auth-btn, ::deep .auth-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 8px;
+    text-decoration: none !important;
+    margin-left: 0 !important;
+    line-height: 1.2;
+    transition: all 0.2s ease-in-out;
+}
+
+.auth-btn:hover, ::deep .auth-btn:hover {
+    text-decoration: none !important;
+    transform: translateY(-1px);
+}
+
+.auth-btn-login {
+    background: linear-gradient(135deg, #3a0647 0%, #5d1576 100%);
+    border: 1px solid #3a0647;
+    color: #ffffff !important;
+    box-shadow: 0 2px 4px rgba(58, 6, 71, 0.25);
+}
+
+.auth-btn-login:hover {
+    background: linear-gradient(135deg, #4e1263 0%, #6d1b8c 100%);
+    box-shadow: 0 4px 8px rgba(58, 6, 71, 0.35);
+}
+
+.auth-btn-register {
+    background-color: #ffffff;
+    border: 1px solid #4e1263;
+    color: #4e1263 !important;
+}
+
+.auth-btn-register:hover {
+    background: linear-gradient(135deg, #3a0647 0%, #5d1576 100%) !important;
+    color: #ffffff !important;
+    border-color: #3a0647 !important;
+    box-shadow: 0 4px 8px rgba(58, 6, 71, 0.35);
+}
+
+.auth-btn-register:hover svg,
+.auth-btn-register:hover span {
+    color: #ffffff !important;
+    fill: #ffffff !important;
+}
+
+.auth-btn-logout {
+    background-color: #ffffff;
+    border: 1px solid #dc3545;
+    color: #dc3545 !important;
+}
+
+.auth-btn-logout:hover {
+    background-color: #dc3545;
+    color: #ffffff !important;
+    box-shadow: 0 2px 5px rgba(220, 53, 69, 0.25);
+}
+
+.user-greeting-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.32rem 0.75rem;
+    background-color: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+    user-select: none;
+    line-height: 1.2;
+}
+
+.user-greeting-badge .user-name {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+

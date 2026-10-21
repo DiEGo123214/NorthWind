@@ -1,0 +1,434 @@
+@page "/invoices"
+@attribute [Authorize]
+@implements IDisposable
+@using NorthWind.Sales.Entities.Dtos.Invoices
+@using NorthWind.Sales.Entities.Dtos.Pagination
+@using NorthWind.Sales.Frontend.BusinessObjects.Interfaces
+@using Microsoft.JSInterop
+@inject IOrderInvoiceGateway InvoiceGateway
+@inject IJSRuntime JS
+
+<PageTitle>Consultar Facturas de Venta</PageTitle>
+
+<div class="container-fluid py-3">
+    <!-- Header Card -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
+            <div>
+                <h4 class="mb-0 fw-bold">
+                    <i class="bi bi-search me-2"></i> Consultar Facturas Realizadas
+                </h4>
+                <small class="text-white-50">Búsqueda inteligente por número de orden o cliente (Reconstrucción y PDF)</small>
+            </div>
+            <a href="createorder" class="btn btn-light btn-sm fw-semibold shadow-sm">
+                + Nueva Venta
+            </a>
+        </div>
+        <div class="card-body p-4">
+            <!-- Search Bar and Filters -->
+            <div class="row g-3 align-items-end mb-4">
+                <!-- Selector de Criterio y Campo de Texto -->
+                <div class="col-xl-6 col-lg-5 col-md-12">
+                    <label class="form-label text-muted small fw-semibold mb-1">
+                        Buscar por:
+                    </label>
+                    <div class="input-group shadow-sm">
+                        <select class="form-select bg-light fw-semibold text-secondary" 
+                                style="max-width: 195px;" 
+                                value="@SelectedCriterion" 
+                                @onchange="OnCriterionChanged">
+                            <option value="InvoiceNumber">N° Factura</option>
+                            <option value="CustomerId">Cédula</option>
+                            <option value="CustomerName">Nombre Cliente</option>
+                        </select>
+                        <input type="text" class="form-control" 
+                               placeholder="@SearchPlaceholder" 
+                               value="@SearchTerm" 
+                               autocomplete="off"
+                               autocorrect="off"
+                               autocapitalize="off"
+                               spellcheck="false"
+                               @oninput="OnSearchInput" />
+                        @if (!string.IsNullOrEmpty(SearchTerm))
+                        {
+                            <button class="btn btn-outline-secondary" type="button" title="Limpiar texto" @onclick="ClearSearchText">
+                                ✕
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Filtro de Fecha: DESDE -->
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+                    <label class="form-label text-muted small fw-bold mb-1">
+                        <span>DESDE</span>
+                    </label>
+                    <div class="input-group shadow-sm">
+                        <input type="date" class="form-control" value="@(FromDate?.ToString("yyyy-MM-dd"))" @onchange="OnFromDateChanged" />
+                    </div>
+                </div>
+
+                <!-- Filtro de Fecha: HASTA -->
+                <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6">
+                    <label class="form-label text-muted small fw-bold mb-1">
+                        <span>HASTA</span>
+                    </label>
+                    <div class="input-group shadow-sm">
+                        <input type="date" class="form-control" value="@(ToDate?.ToString("yyyy-MM-dd"))" @onchange="OnToDateChanged" />
+                    </div>
+                </div>
+
+                <!-- Botón Limpiar -->
+                <div class="col-xl-2 col-lg-2 col-md-4 col-sm-12">
+                    <button class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-1 shadow-sm px-3" 
+                            type="button" 
+                            title="Restablecer filtros"
+                            @onclick="ClearSearch">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-counterclockwise" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                        </svg>
+                        <span>Limpiar</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Error Banner -->
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <div class="alert alert-danger d-flex align-items-center justify-content-between my-3 shadow-sm" role="alert">
+                    <div>
+                        <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                        <span>@ErrorMessage</span>
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => Search(1)">
+                        Reintentar
+                    </button>
+                </div>
+            }
+
+            <!-- Content Area -->
+            @if (IsLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="text-muted mt-2">Buscando facturas guardadas...</p>
+                </div>
+            }
+            else if (Result == null || Result.Items.Count == 0)
+            {
+                <div class="alert alert-info text-center py-4 my-3">
+                    <i class="bi bi-info-circle fs-3 d-block mb-2"></i>
+                    No se encontraron órdenes de venta registradas con el criterio de búsqueda.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle border">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 170px;">Factura</th>
+                                <th>Cliente</th>
+                                <th style="width: 150px;">País</th>
+                                <th style="width: 110px;" class="text-center">Artículos</th>
+                                <th style="width: 140px;" class="text-end">Total a Pagar</th>
+                                <th style="width: 120px;" class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var order in Result.Items)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-primary">#@order.Id.ToString("D6")</div>
+                                        <div class="text-muted small">@order.OrderDate.ToString("dd/MM/yyyy HH:mm")</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold">@order.CustomerName</div>
+                                        <div class="text-muted small">@order.CustomerId</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold">@(string.IsNullOrWhiteSpace(order.ShipCountry) ? "No especificado" : order.ShipCountry)</div>
+                                        <div class="text-muted small">@(string.IsNullOrWhiteSpace(order.ShipCity) ? "-" : order.ShipCity)</div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary">@order.ItemCount items</span>
+                                    </td>
+                                    <td class="text-end fw-bold text-success fs-6">
+                                        $ @order.Total.ToString("N2")
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-inline-flex align-items-center gap-2">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary shadow-sm" 
+                                                    title="Ver Factura" 
+                                                    @onclick="() => ViewInvoice(order.Id)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16">
+                                                    <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+                                                    <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+                                                </svg>
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-danger shadow-sm" 
+                                                    title="Descargar en PDF" 
+                                                    disabled="@(DownloadingOrderId == order.Id)"
+                                                    @onclick="() => DownloadInvoiceDirectPdf(order.Id)">
+                                                @if (DownloadingOrderId == order.Id)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                                }
+                                                else
+                                                {
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-pdf-fill" viewBox="0 0 16 16">
+                                                        <path d="M5.523 12.424c.14-.082.293-.162.459-.238a7.878 7.878 0 0 1-.45.606c-.28.337-.498.516-.635.572a.266.266 0 0 1-.035.012.282.282 0 0 1-.026-.044c-.056-.11-.054-.216.037-.36.074-.117.19-.248.65-.548zm2.474-5.02c.31-.486.635-1.044.887-1.636l-.011.002a28.258 28.258 0 0 0-.214-.045l-.014-.002c-.378-.067-.704.093-.844.415a.84.84 0 0 0 .046.724c.04.07.098.147.166.241.066.094.135.195.21.301zm-1.84 4.542c-.22.18-.456.353-.7.514a.274.274 0 0 1-.044.024c-.033.016-.06.027-.08.033a.243.243 0 0 1-.043-.06c-.053-.105-.052-.206.036-.343.072-.113.18-.24.631-.534zm5.02-3.15c.376.182.72.33 1.01.442.14.055.263.1.365.133l.024.007c.28.085.44-.007.498-.12.067-.13.016-.297-.137-.46-.144-.153-.365-.295-.658-.415a6.52 6.52 0 0 0-1.102-.423v.836zm-2.072-1.393c-.452.883-.984 1.76-1.577 2.533-.497.648-1.056 1.22-1.666 1.7-.625.49-1.258.82-1.867.97-.245.06-.492.083-.732.062a1.28 1.28 0 0 1-.68-.28c-.378-.346-.439-.838-.172-1.332.22-.407.625-.79 1.157-1.127.546-.347 1.205-.66 1.94-.91.542-.185 1.11-.337 1.687-.452.484-.66.914-1.385 1.272-2.146.404-.858.68-1.742.812-2.58.077-.49.034-.96-.135-1.36a1.273 1.273 0 0 0-.845-.77c-.432-.11-.884.005-1.246.332-.387.35-.579.882-.53 1.472.043.522.228 1.103.529 1.706.324.648.747 1.328 1.244 2.016l.19.26z"/>
+                                                        <path d="M9.293 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.707A1 1 0 0 0 13.707 4L10 .293A1 1 0 0 0 9.293 0zM9.5 3.5v-2l3 3h-2a1 1 0 0 1-1-1zM4.5 13.5a1.5 1.5 0 0 1-1.5-1.5V3a1 1 0 0 1 1-1h4v2.5A2.5 2.5 0 0 0 10.5 7H13v5a1.5 1.5 0 0 1-1.5 1.5h-7z"/>
+                                                    </svg>
+                                                }
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="text-muted small mb-0 fw-semibold">Mostrar:</label>
+                        <select class="form-select form-select-sm shadow-sm" style="width: auto; min-width: 90px;" value="@PageSize" @onchange="OnPageSizeChanged">
+                            <option value="10">10</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span class="text-muted small">
+                            por página | Página @Result.PageIndex de @Result.TotalPages (Total: @Result.TotalCount facturas)
+                        </span>
+                    </div>
+                    <div class="btn-group btn-group-sm shadow-sm">
+                        <button type="button" class="btn btn-outline-secondary" 
+                                disabled="@(!Result.HasPreviousPage)" 
+                                @onclick="() => Search(Result.PageIndex - 1)">
+                            ◀ Anterior
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" 
+                                disabled="@(!Result.HasNextPage)" 
+                                @onclick="() => Search(Result.PageIndex + 1)">
+                            Siguiente ▶
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Reconstrucción de Factura y PDF -->
+<InvoiceViewerModal 
+    IsVisible="IsModalVisible" 
+    Invoice="SelectedInvoice" 
+    OnClose="CloseModal" />
+
+@code {
+    private string SelectedCriterion = "InvoiceNumber";
+    private string SearchTerm = string.Empty;
+    private DateTime? FromDate;
+    private DateTime? ToDate;
+
+    private PaginatedResult<OrderSummaryDto>? Result;
+    private bool IsLoading = false;
+    private int? DownloadingOrderId = null;
+    private string? ErrorMessage;
+    private int PageSize = 10;
+
+    private OrderInvoiceDto? SelectedInvoice;
+    private bool IsModalVisible = false;
+    private CancellationTokenSource? _searchCts;
+
+    private string SearchPlaceholder => SelectedCriterion switch
+    {
+        "InvoiceNumber" => "Escribe aquí Ej. 0001",
+        "CustomerId" => "Escribe aquí  Ej. 1801234567",
+        "CustomerName" => "Escribe aquí Ej. Alfreds Futterkiste",
+        _ => "Escribe aquí para buscar..."
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Search(1);
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchTerm = e.Value?.ToString() ?? string.Empty;
+
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        try
+        {
+            await Task.Delay(300, token);
+            if (!token.IsCancellationRequested)
+            {
+                await Search(1);
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Ignorado al seguir escribiendo
+        }
+    }
+
+    private async Task OnCriterionChanged(ChangeEventArgs e)
+    {
+        SelectedCriterion = e.Value?.ToString() ?? "InvoiceNumber";
+        await Search(1);
+    }
+
+    private async Task OnFromDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var date))
+        {
+            FromDate = date;
+        }
+        else
+        {
+            FromDate = null;
+        }
+        await Search(1);
+    }
+
+    private async Task OnToDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var date))
+        {
+            ToDate = date;
+        }
+        else
+        {
+            ToDate = null;
+        }
+        await Search(1);
+    }
+
+    private async Task ClearSearchText()
+    {
+        SearchTerm = string.Empty;
+        await Search(1);
+    }
+
+    private async Task Search(int pageIndex)
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            Result = await InvoiceGateway.SearchOrdersAsync(
+                SearchTerm, 
+                pageIndex, 
+                PageSize, 
+                SelectedCriterion == "All" ? null : SelectedCriterion, 
+                FromDate, 
+                ToDate);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            ErrorMessage = "Sesión no autorizada o expirada. Por favor, vuelva a iniciar sesión.";
+            Result = null;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error al consultar facturas: {ex.Message}";
+            Result = null;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ClearSearch()
+    {
+        SearchTerm = string.Empty;
+        SelectedCriterion = "InvoiceNumber";
+        FromDate = null;
+        ToDate = null;
+        await Search(1);
+    }
+
+    public void Dispose()
+    {
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+    }
+
+    private async Task ViewInvoice(int orderId)
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            SelectedInvoice = await InvoiceGateway.GetOrderInvoiceAsync(orderId);
+            if (SelectedInvoice != null)
+            {
+                IsModalVisible = true;
+            }
+        }
+        catch (Exception)
+        {
+            ErrorMessage = $"Error al recuperar la factura #{orderId:D6}. Verifique que el servicio WebApi esté activo.";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newSize) && newSize > 0)
+        {
+            PageSize = newSize;
+            await Search(1);
+        }
+    }
+
+    private async Task DownloadInvoiceDirectPdf(int orderId)
+    {
+        DownloadingOrderId = orderId;
+        ErrorMessage = null;
+        try
+        {
+            SelectedInvoice = await InvoiceGateway.GetOrderInvoiceAsync(orderId);
+            if (SelectedInvoice != null)
+            {
+                IsModalVisible = false;
+                StateHasChanged();
+                await Task.Delay(400);
+                string filename = $"Factura_Orden_{SelectedInvoice.Id:D8}.pdf";
+                await JS.InvokeVoidAsync("downloadInvoicePdf", "printable-invoice", filename);
+            }
+        }
+        catch (Exception)
+        {
+            ErrorMessage = $"Error al descargar el PDF de la factura #{orderId:D6}. Verifique que el servicio WebApi esté activo.";
+        }
+        finally
+        {
+            DownloadingOrderId = null;
+            StateHasChanged();
+        }
+    }
+
+    private void CloseModal()
+    {
+        IsModalVisible = false;
+        SelectedInvoice = null;
+    }
+}

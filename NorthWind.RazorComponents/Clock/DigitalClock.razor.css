@@ -1,0 +1,48 @@
+.digital-clock {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.65rem;
+    background-color: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    user-select: none;
+    line-height: 1.15;
+    transition: all 0.2s ease-in-out;
+}
+
+.digital-clock:hover {
+    border-color: #4e1263;
+    box-shadow: 0 2px 6px rgba(78, 18, 99, 0.15);
+}
+
+.clock-icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4e1263;
+}
+
+.clock-display {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.clock-time {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1f2937;
+    font-family: 'Consolas', 'Courier New', monospace;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+}
+
+.clock-date {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #6b7280;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}

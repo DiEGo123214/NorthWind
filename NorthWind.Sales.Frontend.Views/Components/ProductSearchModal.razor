@@ -1,0 +1,323 @@
+@using NorthWind.Sales.Entities.Dtos.Pagination
+@using NorthWind.Sales.Entities.Dtos.Products
+@using NorthWind.Sales.Frontend.BusinessObjects.Interfaces
+@inject ISearchProductsGateway SearchGateway
+@implements IDisposable
+
+@if (IsVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-box-seam"></i> Búsqueda Inteligente de Productos
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Selector de Criterio y Campo de Texto en Vivo -->
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-semibold mb-1">Buscar por:</label>
+                        <div class="input-group shadow-sm">
+                            <select class="form-select bg-light fw-semibold text-secondary" 
+                                    style="max-width: 180px;" 
+                                    value="@SelectedCriterion" 
+                                    @onchange="OnCriterionChanged">
+                                <option value="ProductId">Cód. Producto</option>
+                                <option value="ProductName">Nombre Producto</option>
+                            </select>
+                            <input type="text" class="form-control" 
+                                   placeholder="@SearchPlaceholder" 
+                                   value="@SearchTerm" 
+                                   autocomplete="off"
+                                   autocorrect="off"
+                                   autocapitalize="off"
+                                   spellcheck="false"
+                                   @oninput="OnSearchInput" />
+                            @if (!string.IsNullOrEmpty(SearchTerm))
+                            {
+                                <button class="btn btn-outline-secondary" type="button" title="Limpiar texto" @onclick="ClearSearchText">
+                                    ✕
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <div class="alert alert-danger text-center my-3">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            @ErrorMessage
+                        </div>
+                    }
+                    else if (IsLoading)
+                    {
+                        <div class="text-center my-4">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                            <p class="text-muted mt-2">Buscando productos disponibles...</p>
+                        </div>
+                    }
+                    else if (Result == null || Result.Items.Count == 0)
+                    {
+                        <div class="alert alert-warning text-center my-3">
+                            No se encontraron productos disponibles con stock mayor a cero.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Descripción del Producto</th>
+                                        <th class="text-end">Precio Unitario</th>
+                                        <th class="text-center">Stock Disponible</th>
+                                        <th class="text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var product in Result.Items)
+                                    {
+                                        int availableStock = GetAvailableStock(product);
+                                        int selectedQuantity = GetSelectedQuantity(product);
+                                        bool isAlreadyAdded = ExistingProductIds != null && ExistingProductIds.Contains(product.Id);
+                                        <tr>
+                                            <td class="fw-bold">@product.Id</td>
+                                            <td>@product.Name</td>
+                                            <td class="text-end fw-semibold">$ @product.UnitPrice.ToString("N2")</td>
+                                            <td class="text-center">
+                                                @if (availableStock > 0)
+                                                {
+                                                    <span class="badge bg-info text-dark">@availableStock unidades</span>
+                                                    @if (selectedQuantity > 0)
+                                                    {
+                                                        <div class="small text-muted mt-1">(@selectedQuantity en la orden)</div>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Agotado (0 unidades)</span>
+                                                    @if (selectedQuantity > 0)
+                                                    {
+                                                        <div class="small text-danger mt-1">(@selectedQuantity ya en orden)</div>
+                                                    }
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                @if (isAlreadyAdded)
+                                                {
+                                                    <span class="badge bg-secondary">Ya agregado</span>
+                                                }
+                                                else if (availableStock <= 0)
+                                                {
+                                                    <span class="badge bg-danger">Sin stock disponible</span>
+                                                }
+                                                else
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-success"
+                                                            @onclick="() => SelectProduct(product)">
+                                                        Seleccionar
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination controls -->
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <label class="text-muted small mb-0 fw-semibold">Mostrar:</label>
+                                <select class="form-select form-select-sm shadow-sm" style="width: auto; min-width: 85px;" value="@PageSize" @onchange="OnPageSizeChanged">
+                                    <option value="10">10</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                                <span class="text-muted small">
+                                    por página | Página @Result.PageIndex de @Result.TotalPages (Total: @Result.TotalCount productos)
+                                </span>
+                            </div>
+                            <div class="btn-group btn-group-sm shadow-sm">
+                                <button type="button" class="btn btn-outline-secondary" 
+                                        disabled="@(!Result.HasPreviousPage)" 
+                                        @onclick="() => Search(Result.PageIndex - 1)">
+                                    ◀ Anterior
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" 
+                                        disabled="@(!Result.HasNextPage)" 
+                                        @onclick="() => Search(Result.PageIndex + 1)">
+                                    Siguiente ▶
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<ProductDto> OnProductSelected { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public IEnumerable<int>? ExistingProductIds { get; set; }
+
+    [Parameter]
+    public IReadOnlyDictionary<int, int>? SelectedQuantities { get; set; }
+
+    private int GetAvailableStock(ProductDto product)
+    {
+        int selectedQty = 0;
+        if (SelectedQuantities != null && SelectedQuantities.TryGetValue(product.Id, out int qty))
+        {
+            selectedQty = qty;
+        }
+        return Math.Max(0, product.UnitsInStock - selectedQty);
+    }
+
+    private int GetSelectedQuantity(ProductDto product)
+    {
+        if (SelectedQuantities != null && SelectedQuantities.TryGetValue(product.Id, out int qty))
+        {
+            return qty;
+        }
+        return 0;
+    }
+
+    private string SelectedCriterion = "ProductId";
+    private string SearchTerm = string.Empty;
+    private PaginatedResult<ProductDto>? Result;
+    private bool IsLoading = false;
+    private string? ErrorMessage;
+    private int PageSize = 10;
+    private CancellationTokenSource? _searchCts;
+
+    private string SearchPlaceholder => SelectedCriterion switch
+    {
+        "ProductId" => "Escribe aquí Ej. 1",
+        "ProductName" => "Escribe aquí Ej. Chai",
+        _ => "Escribe aquí para buscar productos..."
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsVisible)
+        {
+            if (Result == null)
+            {
+                await Search(1);
+            }
+            else
+            {
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchTerm = e.Value?.ToString() ?? string.Empty;
+
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        try
+        {
+            await Task.Delay(300, token);
+            if (!token.IsCancellationRequested)
+            {
+                await Search(1);
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Búsqueda cancelada por nueva entrada
+        }
+    }
+
+    private async Task OnCriterionChanged(ChangeEventArgs e)
+    {
+        SelectedCriterion = e.Value?.ToString() ?? "ProductId";
+        await Search(1);
+    }
+
+    private async Task ClearSearchText()
+    {
+        SearchTerm = string.Empty;
+        await Search(1);
+    }
+
+    private async Task OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newSize) && newSize > 0)
+        {
+            PageSize = newSize;
+            await Search(1);
+        }
+    }
+
+    public async Task Search(int pageIndex)
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        try
+        {
+            Result = await SearchGateway.SearchProductsAsync(
+                SearchTerm, 
+                pageIndex, 
+                PageSize, 
+                SelectedCriterion == "All" ? null : SelectedCriterion);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            ErrorMessage = "Sesión no autorizada o expirada. Por favor, vuelva a iniciar sesión.";
+            Result = null;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error al buscar productos: {ex.Message}";
+            Result = null;
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SelectProduct(ProductDto product)
+    {
+        await OnProductSelected.InvokeAsync(product);
+        await CloseModal();
+    }
+
+    private async Task CloseModal()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+    }
+}

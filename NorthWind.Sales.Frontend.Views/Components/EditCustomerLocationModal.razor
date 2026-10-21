@@ -1,0 +1,145 @@
+@using NorthWind.Sales.Entities.Dtos.Customers
+@using NorthWind.Sales.Frontend.BusinessObjects.Interfaces
+@inject ISearchCustomersGateway SearchGateway
+
+@if (IsVisible && Customer != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-geo-alt-fill"></i> Actualizar Ubicación del Cliente
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Cliente:</label>
+                        <div class="fw-bold fs-6 text-dark">@Customer.Name (@Customer.Id)</div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <div class="alert alert-danger py-2 small">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> @ErrorMessage
+                        </div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="editAddress">Dirección:</label>
+                        <input type="text" class="form-control" id="editAddress" maxlength="60" 
+                               placeholder="Ej. Av. Principal 123" 
+                               @bind="Address" />
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" for="editCity">Ciudad:</label>
+                            <input type="text" class="form-control" id="editCity" maxlength="15" 
+                                   placeholder="Ej. Ambato" 
+                                   @bind="City" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" for="editCountry">País:</label>
+                            <input type="text" class="form-control" id="editCountry" maxlength="15" 
+                                   placeholder="Ej. Ecuador" 
+                                   @bind="Country" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="editPostalCode">Código Postal:</label>
+                        <input type="text" class="form-control" id="editPostalCode" maxlength="10" 
+                               placeholder="Ej. 180101" 
+                               @bind="PostalCode" />
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal" disabled="@IsSaving">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary shadow-sm" @onclick="SaveChanges" disabled="@IsSaving">
+                        @if (IsSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            <span>Guardando...</span>
+                        }
+                        else
+                        {
+                            <span>💾 Guardar Cambios</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public CustomerDto? Customer { get; set; }
+
+    [Parameter]
+    public EventCallback<CustomerDto> OnSaved { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private string Address = string.Empty;
+    private string City = string.Empty;
+    private string Country = string.Empty;
+    private string PostalCode = string.Empty;
+    private bool IsSaving = false;
+    private string? ErrorMessage;
+
+    protected override void OnParametersSet()
+    {
+        if (Customer != null)
+        {
+            Address = Customer.Address ?? string.Empty;
+            City = Customer.City ?? string.Empty;
+            Country = Customer.Country ?? string.Empty;
+            PostalCode = Customer.PostalCode ?? string.Empty;
+            ErrorMessage = null;
+        }
+    }
+
+    private async Task SaveChanges()
+    {
+        if (Customer == null) return;
+
+        IsSaving = true;
+        ErrorMessage = null;
+        try
+        {
+            var dto = new UpdateCustomerLocationDto(Customer.Id, Address, City, Country, PostalCode);
+            var updated = await SearchGateway.UpdateCustomerLocationAsync(dto);
+            if (updated != null)
+            {
+                await OnSaved.InvokeAsync(updated);
+                await CloseModal();
+            }
+            else
+            {
+                ErrorMessage = "No se pudo actualizar la ubicación del cliente.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private async Task CloseModal()
+    {
+        await OnClose.InvokeAsync();
+    }
+}
