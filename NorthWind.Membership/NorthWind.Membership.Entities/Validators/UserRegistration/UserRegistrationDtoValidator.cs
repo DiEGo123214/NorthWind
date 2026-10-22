@@ -13,7 +13,10 @@ internal class UserRegistrationDtoValidator :
             .NotEmpty(UserRegistrationMessages.RequiredLastNameErrorMessage); 
         AddRuleFor(u => u.Email) 
             .NotEmpty(UserRegistrationMessages.RequiredEmailErrorMessage) 
-            .EmailAddress(UserRegistrationMessages.InvalidEmailErrorMessage); 
+            .EmailAddress(UserRegistrationMessages.InvalidEmailErrorMessage)
+            .Must(email => !string.IsNullOrWhiteSpace(email) && 
+                           System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$"),
+                  "El correo debe tener un dominio válido (ejemplo: usuario@dominio.com)"); 
         AddRuleFor(u => u.Password) 
             .StopOnFirstFailure() 
             .NotEmpty(UserRegistrationMessages.RequiredPasswordErrorMessage) 

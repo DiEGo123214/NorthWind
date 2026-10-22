@@ -11,9 +11,26 @@ public class UserLoginViewModel(
 
     public event Action OnLogin;
     #region Datos de entrada
-    public string Email { get; set; }
+    private string _email = string.Empty;
+    public string Email 
+    { 
+        get => _email; 
+        set => _email = FilterEmail(value); 
+    }
     public string Password { get; set; }
     #endregion
+
+    private static string FilterEmail(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        var filtered = new string(value.Where(c => char.IsAsciiLetterOrDigit(c) || c == '.' || c == '_' || c == '-' || c == '@').ToArray());
+        int atIndex = filtered.IndexOf('@');
+        if (atIndex != -1)
+        {
+            filtered = filtered[..(atIndex + 1)] + filtered[(atIndex + 1)..].Replace("@", "");
+        }
+        return filtered.Length > 100 ? filtered[..100] : filtered;
+    }
     public async Task Login()
     {
         try

@@ -9,6 +9,10 @@
         <InputText id="Email" 
                    class="form-control" 
                    placeholder="@CommonMessages.EmailLabel" 
+                   maxlength="100"
+                   autocomplete="off"
+                   onkeydown="if(event.key.length === 1 && !event.ctrlKey && !event.metaKey) { if(!/^[a-zA-Z0-9._\-\x40]$/.test(event.key) || (event.key === '\x40' && this.value.includes('\x40'))) { event.preventDefault(); return false; } }"
+                   oninput="let v = this.value.replace(/[^a-zA-Z0-9._\-\x40]/g, ''); const at = v.indexOf('\x40'); if(at !== -1) { v = v.slice(0, at + 1) + v.slice(at + 1).replace(/\x40/g, ''); } this.value = v.slice(0, 100);"
                    @bind-Value=ViewModel.Email /> 
         <ValidationMessage For="@(() => ViewModel.Email)" /> 
     </div> 

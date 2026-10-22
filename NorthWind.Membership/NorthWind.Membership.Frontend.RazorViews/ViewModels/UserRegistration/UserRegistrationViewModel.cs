@@ -26,7 +26,12 @@ public class UserRegistrationViewModel(
         set => _lastName = FilterLettersOnly(value, 30); 
     } 
 
-    public string Email { get; set; } 
+    private string _email = string.Empty;
+    public string Email 
+    { 
+        get => _email; 
+        set => _email = FilterEmail(value); 
+    } 
     public string Password { get; set; } 
     public string PasswordConfirmation { get; set; } 
     #endregion 
@@ -36,6 +41,18 @@ public class UserRegistrationViewModel(
         if (string.IsNullOrEmpty(value)) return string.Empty;
         var filtered = new string(value.Where(c => char.IsLetter(c) || char.IsWhiteSpace(c)).ToArray());
         return filtered.Length > maxLength ? filtered[..maxLength] : filtered;
+    }
+
+    private static string FilterEmail(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        var filtered = new string(value.Where(c => char.IsAsciiLetterOrDigit(c) || c == '.' || c == '_' || c == '-' || c == '@').ToArray());
+        int atIndex = filtered.IndexOf('@');
+        if (atIndex != -1)
+        {
+            filtered = filtered[..(atIndex + 1)] + filtered[(atIndex + 1)..].Replace("@", "");
+        }
+        return filtered.Length > 100 ? filtered[..100] : filtered;
     } 
     public async Task Register() 
     { 

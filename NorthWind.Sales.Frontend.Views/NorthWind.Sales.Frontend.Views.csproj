@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.12" />
-    <PackageReference Include="NorthWind.Membership.Frontend.RazorViews" Version="1.0.1" />
+    <ProjectReference Include="..\NorthWind.Membership\NorthWind.Membership.Frontend.RazorViews\NorthWind.Membership.Frontend.RazorViews.csproj" />
   </ItemGroup>
 
   <ItemGroup>
