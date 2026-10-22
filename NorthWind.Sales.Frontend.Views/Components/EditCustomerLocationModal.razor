@@ -30,6 +30,8 @@
                         <label class="form-label fw-semibold" for="editAddress">Dirección:</label>
                         <input type="text" class="form-control" id="editAddress" maxlength="60" 
                                placeholder="Ej. Av. Principal 123" 
+                               onkeydown="if(event.key.length === 1 && !/[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s.,\-#/:°]/.test(event.key) && !event.ctrlKey && !event.metaKey) { event.preventDefault(); return false; }"
+                               oninput="this.value = this.value.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s.,\-#/:°]/g, '').slice(0, 60);"
                                @bind="Address" />
                     </div>
 
@@ -50,8 +52,10 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold" for="editPostalCode">Código Postal:</label>
-                        <input type="text" class="form-control" id="editPostalCode" maxlength="10" 
+                        <input type="text" class="form-control" id="editPostalCode" maxlength="6" 
                                placeholder="Ej. 180101" 
+                               onkeydown="if(event.key.length === 1 && !/[0-9]/.test(event.key) && !event.ctrlKey && !event.metaKey) { event.preventDefault(); return false; }"
+                               oninput="this.value = this.value.replace(/\D/g, '').slice(0, 6);"
                                @bind="PostalCode" />
                     </div>
                 </div>

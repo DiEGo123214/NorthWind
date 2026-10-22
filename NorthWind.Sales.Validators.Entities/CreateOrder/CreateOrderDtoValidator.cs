@@ -21,7 +21,9 @@ internal class CreateOrderDtoValidator : AbstractModelValidator<CreateOrderDto>
 
         AddRuleFor(c => c.ShipAddress)
             .NotEmpty(CreateOrderMessages.ShipAddressRequired)
-            .MaximumLength(60, CreateOrderMessages.ShipAddressMaximumLength);
+            .MaximumLength(60, CreateOrderMessages.ShipAddressMaximumLength)
+            .Must(a => string.IsNullOrEmpty(a) || System.Text.RegularExpressions.Regex.IsMatch(a, @"^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s.,\-#/:°]+$"),
+                  "La dirección contiene caracteres no permitidos.");
 
         AddRuleFor(c => c.ShipCity)
             .NotEmpty(CreateOrderMessages.ShipCityRequired)
@@ -36,8 +38,9 @@ internal class CreateOrderDtoValidator : AbstractModelValidator<CreateOrderDto>
             .Must(c => string.IsNullOrEmpty(c) || c.All(ch => char.IsLetter(ch) || char.IsWhiteSpace(ch)), CreateOrderMessages.ShipCountryOnlyLetters);
 
         AddRuleFor(c => c.ShipPostalCode)
-            .MaximumLength(10, CreateOrderMessages.ShipPostalCodeMaximumLength)
-            .Must(c => string.IsNullOrEmpty(c) || c.All(ch => char.IsLetterOrDigit(ch) || char.IsWhiteSpace(ch) || ch == '-'), CreateOrderMessages.ShipPostalCodeAlphanumeric);
+            .MaximumLength(6, "El código postal no puede exceder los 6 dígitos.")
+            .Must(c => string.IsNullOrEmpty(c) || (c.All(char.IsDigit) && c.Length == 6), 
+                  "El código postal debe tener exactamente 6 dígitos numéricos.");
 
         AddRuleFor(c => c.OrderDetails)
             .NotNull(CreateOrderMessages.OrderDetailsRequired)

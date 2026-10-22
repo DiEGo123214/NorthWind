@@ -161,6 +161,8 @@
                                autocomplete="off"
                                disabled="@(Order.ShippingOption != ShippingOptionType.CustomAddress)"
                                style="@(Order.ShippingOption != ShippingOptionType.CustomAddress ? "cursor: not-allowed;" : "")"
+                               onkeydown="if(event.key.length === 1 && !/[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s.,\-#/:°]/.test(event.key) && !event.ctrlKey && !event.metaKey) { event.preventDefault(); return false; }"
+                               oninput="this.value = this.value.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s.,\-#/:°]/g, '').slice(0, 60);"
                                @bind-Value="Order.ShipAddress" />
                     <ValidationMessage For="() => Order.ShipAddress" class="text-danger small" />
                 </div>
@@ -199,13 +201,13 @@
                     <label class="form-label fw-bold" for="shipPostalCode">@CreateOrderMessages.ShipPostalCodeLabel</label>
                     <InputText class="@ShippingInputClass" 
                                id="shipPostalCode" 
-                               placeholder="@CreateOrderMessages.ShipPostalCodeLabel" 
-                               maxlength="10" 
+                               placeholder="Ej. 180101" 
+                               maxlength="6" 
                                autocomplete="off"
                                disabled="@(Order.ShippingOption != ShippingOptionType.CustomAddress)"
                                style="@(Order.ShippingOption != ShippingOptionType.CustomAddress ? "cursor: not-allowed;" : "")"
-                               onkeydown="if(event.key.length === 1 && !/[a-zA-Z0-9\s-]/.test(event.key) && !event.ctrlKey && !event.metaKey) { event.preventDefault(); return false; }"
-                               oninput="this.value = this.value.replace(/[^a-zA-Z0-9\s-]/g, '').slice(0, 10);"
+                               onkeydown="if(event.key.length === 1 && !/[0-9]/.test(event.key) && !event.ctrlKey && !event.metaKey) { event.preventDefault(); return false; }"
+                               oninput="this.value = this.value.replace(/\D/g, '').slice(0, 6);"
                                @bind-Value="Order.ShipPostalCode" />
                     <ValidationMessage For="() => Order.ShipPostalCode" class="text-danger small" />
                 </div>

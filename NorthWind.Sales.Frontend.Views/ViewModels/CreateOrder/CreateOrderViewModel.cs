@@ -47,7 +47,7 @@ public class CreateOrderViewModel(
     public string ShipAddress
     {
         get => _shipAddress;
-        set => _shipAddress = Truncate(value, 60);
+        set => _shipAddress = FilterAddress(value, 60);
     }
 
     public string ShipCity
@@ -65,7 +65,7 @@ public class CreateOrderViewModel(
     public string ShipPostalCode
     {
         get => _shipPostalCode;
-        set => _shipPostalCode = FilterPostalCode(value, 10);
+        set => _shipPostalCode = FilterPostalCode(value, 6);
     }
 
     public List<CreateOrderDetailViewModel> OrderDetails { get; set; } = [];
@@ -266,6 +266,14 @@ public class CreateOrderViewModel(
         );
 
     #region Métodos de Limpieza y Restricción de Entradas
+    private static string FilterAddress(string? value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        char[] allowed = ['.', ',', '-', '#', '/', ':', '°'];
+        var filtered = new string(value.Where(c => char.IsLetterOrDigit(c) || char.IsWhiteSpace(c) || allowed.Contains(c)).ToArray());
+        return filtered.Length > maxLength ? filtered[..maxLength] : filtered;
+    }
+
     private static string Truncate(string? value, int maxLength)
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;
@@ -282,7 +290,7 @@ public class CreateOrderViewModel(
     private static string FilterPostalCode(string? value, int maxLength)
     {
         if (string.IsNullOrEmpty(value)) return string.Empty;
-        var filtered = new string(value.Where(c => char.IsLetterOrDigit(c) || char.IsWhiteSpace(c) || c == '-').ToArray());
+        var filtered = new string(value.Where(char.IsDigit).ToArray());
         return filtered.Length > maxLength ? filtered[..maxLength] : filtered;
     }
     #endregion
