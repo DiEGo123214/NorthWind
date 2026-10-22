@@ -10,7 +10,7 @@ internal class NorthWindContext : DbContext
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.UseSqlServer(
-            "Server=localhost;Database=NorthWindD8;User Id=sa;Password=DIEgo344;TrustServerCertificate=True");
+            "Server=10.0.2.2,1433;Database=NorthWindD8;User Id=sa;Password=DIEgo344*;TrustServerCertificate=True");
     }
 
     public DbSet<Order> Orders { get; set; }
